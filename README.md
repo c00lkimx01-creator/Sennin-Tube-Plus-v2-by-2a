@@ -1,3 +1,12 @@
+# v 2.1
+変更内容
+- PlayListの追加
+- Logoの変更
+- Edu再生のYoutube埋め込みをちゃんとしたEduで埋め込み再生に変更
+
+
+
+
 # v 2.0
 invidiousのほかにさまざまなapiを搭載
 - senninapi(仙人tubeplus以外で使うことを禁ずる)
