@@ -1,0 +1,348 @@
+{% extends "base.html" %}
+
+{% block title %}ホーム - 仙人Tube{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* セクションタイトルのスタイル */
+    .section-title {
+        font-size: 20px;
+        font-weight: 700;
+        margin: 0 0 20px 0;
+        color: var(--yt-text-primary);
+    }
+
+    /* レスポンシブグリッドレイアウト */
+    .video-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 20px 16px;
+        width: 100%;
+    }
+
+    /* 動画カードのベーススタイルと基本アニメーション */
+    .video-card {
+        display: flex;
+        flex-direction: column;
+        text-decoration: none;
+        color: var(--yt-text-primary);
+        border-radius: 12px;
+        overflow: hidden;
+        transition: transform 0.25s cubic-bezier(0.2, 0, 0, 1), 
+                    box-shadow 0.25s cubic-bezier(0.2, 0, 0, 1);
+        /* 初期読み込み時のフェードインアニメーション */
+        animation: fadeInCard 0.4s ease-out forwards;
+        will-change: transform;
+    }
+
+    /* ホバー時のホバー＆浮き上がり効果 */
+    .video-card:hover {
+        transform: translateY(-4px);
+    }
+
+    /* サムネイル容器（16:9 アスペクト比固定） */
+    .video-thumbnail {
+        position: relative;
+        width: 100%;
+        padding-top: 56.25%; /* 16:9 Aspect Ratio */
+        background-color: var(--yt-chip-bg);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    .video-thumbnail img {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1);
+    }
+
+    /* ホバー時のサムネイル微拡大（ズームイン効果） */
+    .video-card:hover .video-thumbnail img {
+        transform: scale(1.05);
+    }
+
+    /* 動画情報のレイアウト */
+    .video-info {
+        display: flex;
+        padding: 12px 0 0 0;
+        gap: 12px;
+    }
+
+    .video-details {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-width: 0; /* テキスト溢れ防止 */
+    }
+
+    /* タイトル（2行で省略表示） */
+    .video-title {
+        font-size: 15px;
+        font-weight: 500;
+        line-height: 1.4;
+        margin-bottom: 6px;
+        color: var(--yt-text-primary);
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        transition: color 0.2s ease;
+    }
+
+    .video-card:hover .video-title {
+        color: #3ea6ff; /* ホバー時にうっすら青く発色 */
+    }
+
+    /* 投稿者とメタ情報 */
+    .video-author,
+    .video-meta {
+        font-size: 13px;
+        color: var(--yt-text-secondary);
+        line-height: 1.3;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .video-author {
+        margin-bottom: 2px;
+    }
+
+    .video-author:hover {
+        color: var(--yt-text-primary);
+    }
+
+    /* カード登場用のキーフレーム */
+    @keyframes fadeInCard {
+        from {
+            opacity: 0;
+            transform: translateY(12px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* --- 読み込みアニメーション（スケルトン） --- */
+    .skeleton-card {
+        display: flex;
+        flex-direction: column;
+        border-radius: 12px;
+        overflow: hidden;
+        pointer-events: none;
+    }
+
+    .skeleton-thumbnail {
+        width: 100%;
+        padding-top: 56.25%;
+        border-radius: 12px;
+        background-color: var(--yt-chip-bg, #e5e5e5);
+    }
+
+    .skeleton-info {
+        display: flex;
+        padding: 12px 0 0 0;
+        gap: 12px;
+    }
+
+    .skeleton-details {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        gap: 8px;
+    }
+
+    .skeleton-line {
+        height: 14px;
+        border-radius: 4px;
+        background-color: var(--yt-chip-bg, #e5e5e5);
+    }
+
+    .skeleton-line.title-1 { width: 90%; height: 16px; }
+    .skeleton-line.title-2 { width: 60%; height: 16px; }
+    .skeleton-line.author  { width: 40%; }
+    .skeleton-line.meta    { width: 50%; }
+
+    .skeleton-pulse {
+        animation: skeletonLoading 1.5s infinite ease-in-out;
+    }
+
+    @keyframes skeletonLoading {
+        0% { opacity: 0.4; }
+        50% { opacity: 0.8; }
+        100% { opacity: 0.4; }
+    }
+
+    /* モバイル・画面幅縮小時の調整 */
+    @media (max-width: 600px) {
+        .video-grid {
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+
+        .video-thumbnail,
+        .skeleton-thumbnail {
+            border-radius: 0; /* スマホ全幅表示時に角丸を解除（YouTube公式風） */
+        }
+        
+        .video-card,
+        .skeleton-card {
+            border-radius: 0;
+        }
+
+        .video-info,
+        .skeleton-info {
+            padding: 10px 12px 0 12px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h2 class="section-title">おすすめ</h2>
+<div class="video-grid" id="video-grid">
+    <!-- 読み込み時に表示されるスケルトンカード -->
+    <div class="skeleton-card skeleton-pulse">
+        <div class="skeleton-thumbnail"></div>
+        <div class="skeleton-info">
+            <div class="skeleton-details">
+                <div class="skeleton-line title-1"></div>
+                <div class="skeleton-line title-2"></div>
+                <div class="skeleton-line author"></div>
+                <div class="skeleton-line meta"></div>
+            </div>
+        </div>
+    </div>
+    <div class="skeleton-card skeleton-pulse">
+        <div class="skeleton-thumbnail"></div>
+        <div class="skeleton-info">
+            <div class="skeleton-details">
+                <div class="skeleton-line title-1"></div>
+                <div class="skeleton-line title-2"></div>
+                <div class="skeleton-line author"></div>
+                <div class="skeleton-line meta"></div>
+            </div>
+        </div>
+    </div>
+    <div class="skeleton-card skeleton-pulse">
+        <div class="skeleton-thumbnail"></div>
+        <div class="skeleton-info">
+            <div class="skeleton-details">
+                <div class="skeleton-line title-1"></div>
+                <div class="skeleton-line title-2"></div>
+                <div class="skeleton-line author"></div>
+                <div class="skeleton-line meta"></div>
+            </div>
+        </div>
+    </div>
+    <div class="skeleton-card skeleton-pulse">
+        <div class="skeleton-thumbnail"></div>
+        <div class="skeleton-info">
+            <div class="skeleton-details">
+                <div class="skeleton-line title-1"></div>
+                <div class="skeleton-line title-2"></div>
+                <div class="skeleton-line author"></div>
+                <div class="skeleton-line meta"></div>
+            </div>
+        </div>
+    </div>
+    <div class="skeleton-card skeleton-pulse">
+        <div class="skeleton-thumbnail"></div>
+        <div class="skeleton-info">
+            <div class="skeleton-details">
+                <div class="skeleton-line title-1"></div>
+                <div class="skeleton-line title-2"></div>
+                <div class="skeleton-line author"></div>
+                <div class="skeleton-line meta"></div>
+            </div>
+        </div>
+    </div>
+    <div class="skeleton-card skeleton-pulse">
+        <div class="skeleton-thumbnail"></div>
+        <div class="skeleton-info">
+            <div class="skeleton-details">
+                <div class="skeleton-line title-1"></div>
+                <div class="skeleton-line title-2"></div>
+                <div class="skeleton-line author"></div>
+                <div class="skeleton-line meta"></div>
+            </div>
+        </div>
+    </div>
+    <div class="skeleton-card skeleton-pulse">
+        <div class="skeleton-thumbnail"></div>
+        <div class="skeleton-info">
+            <div class="skeleton-details">
+                <div class="skeleton-line title-1"></div>
+                <div class="skeleton-line title-2"></div>
+                <div class="skeleton-line author"></div>
+                <div class="skeleton-line meta"></div>
+            </div>
+        </div>
+    </div>
+    <div class="skeleton-card skeleton-pulse">
+        <div class="skeleton-thumbnail"></div>
+        <div class="skeleton-info">
+            <div class="skeleton-details">
+                <div class="skeleton-line title-1"></div>
+                <div class="skeleton-line title-2"></div>
+                <div class="skeleton-line author"></div>
+                <div class="skeleton-line meta"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    fetch("/api/recommended")
+        .then(response => response.json())
+        .then(videos => {
+            const grid = document.getElementById("video-grid");
+            grid.innerHTML = ""; // 読み込み完了後にスケルトン表示を消去
+            videos.forEach((video, index) => {
+                const card = document.createElement("a");
+                card.href = `/watch?v=${video.videoId}`;
+                card.className = "video-card";
+                card.style.animationDelay = `${index * 0.05}s`;
+
+                let metaText = "";
+                if (video.viewCountText) {
+                    metaText += video.viewCountText;
+                } else if (video.viewCount) {
+                    metaText += `${video.viewCount} 回視聴`;
+                }
+                if (video.publishedText) {
+                    if (metaText) metaText += " • ";
+                    metaText += video.publishedText;
+                }
+
+                card.innerHTML = `
+                    <div class="video-thumbnail">
+                        <img src="/thumbnail?v=${video.videoId}" alt="${video.title}" loading="lazy">
+                    </div>
+                    <div class="video-info">
+                        <div class="video-details">
+                            <div class="video-title"></div>
+                            <div class="video-author"></div>
+                            <div class="video-meta"></div>
+                        </div>
+                    </div>
+                `;
+
+                card.querySelector(".video-title").textContent = video.title || "";
+                card.querySelector(".video-author").textContent = video.author || "";
+                card.querySelector(".video-meta").textContent = metaText;
+
+                grid.appendChild(card);
+            });
+        })
+        .catch(err => console.error("Failed to load recommended videos:", err));
+});
+</script>
+{% endblock %}

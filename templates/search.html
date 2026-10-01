@@ -1,0 +1,1073 @@
+{% extends "base.html" %}
+
+{% block title %}{% if query %}「{{ query }}」の検索結果 - 仙人Tube+{% else %}ホーム - 仙人Tube+{% endif %}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .search-results-container {
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 8px 16px 40px;
+    }
+
+    .filter-header-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid var(--yt-border-color);
+        padding-bottom: 8px;
+        margin-bottom: 16px;
+    }
+
+    .filter-toggle-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: none;
+        border: none;
+        color: var(--yt-text-primary);
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        padding: 6px 12px;
+        border-radius: 18px;
+        transition: background-color 0.2s;
+    }
+    .filter-toggle-btn:hover {
+        background-color: var(--yt-hover-bg);
+    }
+    .filter-toggle-btn .material-symbols-outlined {
+        font-size: 20px;
+    }
+
+    .filter-panel {
+        display: none;
+        background-color: var(--yt-sidebar-bg);
+        border-bottom: 1px solid var(--yt-border-color);
+        padding: 16px 0 24px 0;
+        margin-bottom: 20px;
+        animation: fadeIn 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-8px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .filter-group-title {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--yt-text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 12px;
+    }
+
+    .filter-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .filter-chip {
+        padding: 8px 16px;
+        border-radius: 8px;
+        background: var(--yt-chip-bg);
+        border: 1px solid transparent;
+        color: var(--yt-text-primary);
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        white-space: nowrap;
+        text-decoration: none;
+        display: inline-block;
+        transition: all 0.2s ease;
+    }
+    .filter-chip:hover {
+        background: var(--yt-hover-bg);
+    }
+    .filter-chip.active {
+        background: var(--yt-chip-active-bg);
+        color: var(--yt-chip-active-text);
+        font-weight: 700;
+    }
+
+    /* レスポンシブグリッドレイアウト（画面サイズに応じて自動で折り返し表示） */
+    .video-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        gap: 20px 16px;
+        width: 100%;
+    }
+
+    /* 動画カードのベーススタイルと基本アニメーション */
+    .video-card {
+        display: flex;
+        flex-direction: column;
+        text-decoration: none;
+        color: var(--yt-text-primary);
+        border-radius: 12px;
+        overflow: hidden;
+        transition: transform 0.25s cubic-bezier(0.2, 0, 0, 1), 
+                    box-shadow 0.25s cubic-bezier(0.2, 0, 0, 1);
+        /* 初期読み込み時のフェードインアニメーション */
+        animation: fadeInCard 0.4s ease-out forwards;
+        will-change: transform;
+    }
+
+    /* ホバー時のホバー＆浮き上がり効果 */
+    .video-card:hover {
+        transform: translateY(-4px);
+    }
+
+    /* サムネイル容器（16:9 アスペクト比固定） */
+    .video-thumbnail {
+        position: relative;
+        width: 100%;
+        padding-top: 56.25%; /* 16:9 Aspect Ratio */
+        background-color: var(--yt-chip-bg);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    .video-thumbnail img {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1);
+    }
+
+    /* ホバー時のサムネイル微拡大（ズームイン効果） */
+    .video-card:hover .video-thumbnail img,
+    .yt-playlist-card:hover .video-thumbnail img {
+        transform: scale(1.05);
+    }
+
+    .length-tag {
+        position: absolute;
+        bottom: 8px;
+        right: 8px;
+        background: rgba(0, 0, 0, 0.8);
+        color: #fff;
+        padding: 3px 6px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 500;
+        letter-spacing: 0.5px;
+        z-index: 1;
+    }
+
+    /* 動画情報のレイアウト */
+    .video-info {
+        display: flex;
+        padding: 12px 0 0 0;
+        gap: 12px;
+    }
+
+    .video-details {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-width: 0; /* テキスト溢れ防止 */
+    }
+
+    /* タイトル（2行で省略表示） */
+    .video-title {
+        font-size: 15px;
+        font-weight: 500;
+        line-height: 1.4;
+        margin-bottom: 6px;
+        color: var(--yt-text-primary);
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        transition: color 0.2s ease;
+    }
+
+    .video-card:hover .video-title {
+        color: #3ea6ff; /* ホバー時にうっすら青く発色 */
+    }
+
+    /* 投稿者とメタ情報 */
+    .video-author,
+    .video-meta {
+        font-size: 13px;
+        color: var(--yt-text-secondary);
+        line-height: 1.3;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .video-author {
+        margin-bottom: 2px;
+    }
+
+    .video-author:hover {
+        color: var(--yt-text-primary);
+    }
+
+    .author-icon {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        object-fit: cover;
+        background-color: var(--yt-border-color);
+    }
+
+    /* カード登場用のキーフレーム */
+    @keyframes fadeInCard {
+        from {
+            opacity: 0;
+            transform: translateY(12px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* --- 読み込みアニメーション（スケルトン） --- */
+    .skeleton-card {
+        display: flex;
+        flex-direction: column;
+        border-radius: 12px;
+        overflow: hidden;
+        pointer-events: none;
+    }
+
+    .skeleton-thumbnail, .skeleton-thumb {
+        width: 100%;
+        padding-top: 56.25%;
+        border-radius: 12px;
+        background-color: var(--yt-chip-bg, #e5e5e5);
+        animation: skeletonLoading 1.5s infinite ease-in-out;
+    }
+
+    .home-shorts-container .skeleton-card .skeleton-thumb {
+        padding-top: 0;
+        aspect-ratio: 9 / 16;
+    }
+
+    .skeleton-info {
+        display: flex;
+        padding: 12px 0 0 0;
+        gap: 12px;
+    }
+
+    .skeleton-details {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        gap: 8px;
+    }
+
+    .skeleton-line, .skeleton-text {
+        height: 14px;
+        border-radius: 4px;
+        background-color: var(--yt-chip-bg, #e5e5e5);
+        margin-top: 6px;
+        animation: skeletonLoading 1.5s infinite ease-in-out;
+    }
+
+    .skeleton-text.short {
+        width: 60%;
+    }
+
+    .skeleton-line.title-1 { width: 90%; height: 16px; }
+    .skeleton-line.title-2 { width: 60%; height: 16px; }
+    .skeleton-line.author  { width: 40%; }
+    .skeleton-line.meta    { width: 50%; }
+
+    .skeleton-pulse {
+        animation: skeletonLoading 1.5s infinite ease-in-out;
+    }
+
+    @keyframes skeletonLoading {
+        0% { opacity: 0.4; }
+        50% { opacity: 0.8; }
+        100% { opacity: 0.4; }
+    }
+
+    /* Shorts, チャンネル, プレイリスト用のレイアウト補正 */
+    .section-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 24px 0 16px;
+        font-size: 20px;
+        font-weight: 700;
+    }
+    .section-header .material-symbols-outlined {
+        color: var(--yt-brand-red);
+    }
+
+    .shorts-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 16px;
+        margin-bottom: 32px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    /* ホーム画面上部のShorts横スクロールセクション（画面サイズに合わせて調整） */
+    .home-shorts-section {
+        margin-bottom: 32px;
+        border-bottom: 1px solid var(--yt-border-color);
+        padding-bottom: 24px;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        overflow: hidden;
+    }
+
+    .home-shorts-container {
+        display: flex;
+        gap: 16px;
+        overflow-x: auto;
+        padding-bottom: 12px;
+        scrollbar-width: thin;
+        scroll-behavior: smooth;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    .home-shorts-container::-webkit-scrollbar {
+        height: 6px;
+    }
+    .home-shorts-container::-webkit-scrollbar-thumb {
+        background: var(--yt-border-color);
+        border-radius: 3px;
+    }
+
+    /* コンテナおよび画面幅からはみ出さないように可変サイズ幅を最適化 */
+    .home-shorts-container .video-card.is-short,
+    .home-shorts-container .skeleton-card {
+        flex: 0 0 clamp(140px, 18vw, 200px);
+        width: clamp(140px, 18vw, 200px);
+        box-sizing: border-box;
+    }
+
+    .video-card.is-short {
+        display: flex;
+        flex-direction: column;
+        text-decoration: none;
+        color: inherit;
+        border-radius: 12px;
+        overflow: hidden;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .video-card.is-short:hover {
+        transform: translateY(-4px);
+    }
+
+    .video-card.is-short .thumbnail-box {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 9 / 16;
+        background-color: var(--yt-chip-bg);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    .video-card.is-short .thumbnail-box img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.3s ease;
+    }
+
+    .video-card.is-short:hover .thumbnail-box img {
+        transform: scale(1.05);
+    }
+
+    .short-badge {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        background: rgba(255, 0, 0, 0.85);
+        backdrop-filter: blur(4px);
+        color: #fff;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        z-index: 1;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .video-card.is-short .video-info {
+        padding: 8px 4px;
+    }
+
+    .yt-channel-card {
+        display: flex;
+        align-items: center;
+        padding: 16px 0;
+        border-bottom: 1px solid var(--yt-border-color);
+        text-decoration: none;
+        color: inherit;
+    }
+    .yt-channel-avatar-large {
+        flex: 0 0 360px;
+        display: flex;
+        justify-content: center;
+    }
+    .yt-channel-avatar-large img {
+        width: 136px;
+        height: 136px;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+
+    /* YouTube本家風 プレイリストカードスタイル */
+    .yt-playlist-card {
+        display: flex;
+        gap: 16px;
+        text-decoration: none;
+        color: inherit;
+        border-radius: 12px;
+        padding: 8px;
+        transition: background-color 0.15s ease;
+        margin-bottom: 8px;
+    }
+    .yt-playlist-card:hover {
+        background-color: var(--yt-hover-bg);
+    }
+
+    .yt-playlist-thumbnail-wrapper {
+        position: relative;
+        flex: 0 0 360px;
+        max-width: 360px;
+        aspect-ratio: 16 / 9;
+        background-color: var(--yt-chip-bg);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    .yt-playlist-thumbnail-wrapper img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1);
+    }
+
+    .playlist-overlay-badge {
+        position: absolute;
+        bottom: 8px;
+        right: 8px;
+        background: rgba(0, 0, 0, 0.8);
+        color: #ffffff;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        backdrop-filter: blur(2px);
+        z-index: 1;
+    }
+
+    .playlist-overlay-badge .material-symbols-outlined {
+        font-size: 16px;
+    }
+
+    .yt-playlist-details {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-width: 0;
+        padding-top: 4px;
+    }
+
+    .yt-playlist-title {
+        font-size: 18px;
+        font-weight: 400;
+        line-height: 1.4;
+        margin: 0 0 6px 0;
+        color: var(--yt-text-primary);
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .yt-playlist-meta {
+        font-size: 12px;
+        color: var(--yt-text-secondary);
+        margin-bottom: 12px;
+    }
+
+    .yt-playlist-view-all {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--yt-text-secondary);
+        margin-top: auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .yt-playlist-card:hover .yt-playlist-view-all {
+        color: var(--yt-text-primary);
+    }
+
+    #infinite-loader {
+        display: none;
+        justify-content: center;
+        align-items: center;
+        padding: 32px 0;
+    }
+    .yt-spinner {
+        width: 36px;
+        height: 36px;
+        border: 3px solid var(--yt-border-color);
+        border-top-color: var(--yt-text-primary);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    #custom-alert {
+        position: fixed;
+        bottom: 80px;
+        right: 24px;
+        background: var(--yt-search-bg);
+        color: var(--yt-text-primary);
+        border-left: 4px solid var(--yt-brand-red);
+        padding: 12px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        z-index: 2000;
+        display: none;
+        font-size: 14px;
+    }
+
+    #hidden-cse-container {
+        display: none;
+    }
+
+    /* モバイル・画面幅縮小時の調整 */
+    @media (max-width: 600px) {
+        .video-grid {
+            grid-template-columns: 1fr !important;
+            gap: 16px;
+        }
+
+        .video-thumbnail,
+        .skeleton-thumbnail {
+            border-radius: 0; /* スマホ全幅表示時に角丸を解除（YouTube公式風） */
+        }
+        
+        .video-card,
+        .skeleton-card {
+            border-radius: 0;
+        }
+
+        .video-info,
+        .skeleton-info {
+            padding: 10px 12px 0 12px;
+        }
+
+        .yt-channel-avatar-large {
+            flex: 0 0 100px;
+        }
+        .yt-channel-avatar-large img {
+            width: 80px;
+            height: 80px;
+        }
+
+        .yt-playlist-card {
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .yt-playlist-thumbnail-wrapper {
+            flex: none;
+            width: 100%;
+            max-width: 100%;
+        }
+
+        .home-shorts-container .video-card.is-short,
+        .home-shorts-container .skeleton-card {
+            flex: 0 0 130px;
+            width: 130px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="hidden-cse-container"></div>
+
+<div id="custom-alert">
+    <div style="display: flex; align-items: center; gap: 10px;">
+        <span id="alert-icon" class="material-symbols-outlined" style="color: var(--yt-brand-red);">info</span>
+        <span id="alert-text"></span>
+    </div>
+</div>
+
+<div class="search-results-container">
+    <form id="search-form" action="/search" method="get" style="display:none;">
+        <input type="hidden" name="q" value="{{ query }}">
+        <input type="hidden" name="type" id="search-type" value="{{ type }}">
+    </form>
+
+    <div class="filter-header-bar">
+        <button class="filter-toggle-btn" id="filter-toggle-btn" type="button">
+            <span class="material-symbols-outlined">tune</span>
+            <span>絞り込み</span>
+        </button>
+    </div>
+
+    <div class="filter-panel" id="filter-panel">
+        <div class="filter-group-title">タイプで絞り込み</div>
+        <div class="filter-chips">
+            <a href="/search?q={{ query|default('') }}&type=home" class="filter-chip {% if type == 'home' %}active{% endif %}">ホーム</a>
+            <a href="/search?q={{ query|default('') }}" class="filter-chip {% if type == 'video' or not type %}active{% endif %}">動画</a>
+            <a href="/search?q={{ query|default('') }}&type=short" class="filter-chip {% if type == 'short' %}active{% endif %}">Shorts</a>
+            <a href="/search?q={{ query|default('') }}&type=channel" class="filter-chip {% if type == 'channel' %}active{% endif %}">チャンネル</a>
+            <a href="/search?q={{ query|default('') }}&type=playlist" class="filter-chip {% if type == 'playlist' %}active{% endif %}">プレイリスト</a>
+        </div>
+    </div>
+
+    {% if not query or type == 'video' or not type or type == 'home' %}
+    <div class="home-shorts-section">
+        <div class="section-header">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" style="width: 24px; height: 24px; fill: var(--yt-brand-red, #ff0000);"><path d="M512.1 116.3C486.7 68.5 426.9 50.2 378.6 75.3L166.9 186.5C118.6 211.7 100.1 270.8 125.5 318.6C142.6 350.7 175.2 369.5 209.4 370.8L169.7 391.7C121.4 416.8 102.8 476 128.2 523.8C153.6 571.6 213.4 589.9 261.7 564.8L473.5 453.5C521.8 428.3 540.3 369.2 514.9 321.4C497.8 289.3 465.2 270.5 431 269.2L470.7 248.3C519 223.2 537.5 164 512.1 116.3zM392.5 320.3L264.3 399L264.3 241.1L392.5 320.2z"/></svg>
+            <span>short</span>
+        </div>
+        <div class="home-shorts-container" id="home-shorts-container">
+            {% if shorts_results %}
+                {% for result in shorts_results %}
+                <a href="/shorts/{{ result['videoId'] }}" class="video-card is-short">
+                    <div class="thumbnail-box">
+                        <img class="thumbnail" loading="lazy" src="/proxy/thumb?v={{ result['videoId'] }}" onerror="this.src='{{ result['videoThumbnails'][0]['url'] if result['videoThumbnails'] else 'https://i.ytimg.com/vi/' + (result['videoId'] or '') + '/mqdefault.jpg' }}';">
+                    </div>
+                    <div class="video-info">
+                        <div class="video-details">
+                            <div class="video-title">{{ result['title'] }}</div>
+                            <div class="video-meta">
+                                {{ result["viewCountText"] or result["viewCount"] }}
+                            </div>
+                        </div>
+                    </div>
+                </a>
+                {% endfor %}
+            {% else %}
+                <div class="skeleton-card"><div class="skeleton-thumb"></div><div class="skeleton-text"></div><div class="skeleton-text short"></div></div>
+                <div class="skeleton-card"><div class="skeleton-thumb"></div><div class="skeleton-text"></div><div class="skeleton-text short"></div></div>
+                <div class="skeleton-card"><div class="skeleton-thumb"></div><div class="skeleton-text"></div><div class="skeleton-text short"></div></div>
+                <div class="skeleton-card"><div class="skeleton-thumb"></div><div class="skeleton-text"></div><div class="skeleton-text short"></div></div>
+                <div class="skeleton-card"><div class="skeleton-thumb"></div><div class="skeleton-text"></div><div class="skeleton-text short"></div></div>
+                <div class="skeleton-card"><div class="skeleton-thumb"></div><div class="skeleton-text"></div><div class="skeleton-text short"></div></div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if type == 'short' %}
+    <div class="section-header">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" style="width: 24px; height: 24px; fill: var(--yt-brand-red, #ff0000);"><path d="M512.1 116.3C486.7 68.5 426.9 50.2 378.6 75.3L166.9 186.5C118.6 211.7 100.1 270.8 125.5 318.6C142.6 350.7 175.2 369.5 209.4 370.8L169.7 391.7C121.4 416.8 102.8 476 128.2 523.8C153.6 571.6 213.4 589.9 261.7 564.8L473.5 453.5C521.8 428.3 540.3 369.2 514.9 321.4C497.8 289.3 465.2 270.5 431 269.2L470.7 248.3C519 223.2 537.5 164 512.1 116.3zM392.5 320.3L264.3 399L264.3 241.1L392.5 320.2z"/></svg>
+        <span>short</span>
+    </div>
+    <div class="shorts-grid" id="results-container">
+        {% for result in results %}
+        <a href="/shorts/{{ result['videoId'] }}" class="video-card is-short">
+            <div class="thumbnail-box">
+                <img class="thumbnail" loading="lazy" src="/proxy/thumb?v={{ result['videoId'] }}" onerror="this.src='{{ result['videoThumbnails'][0]['url'] if result['videoThumbnails'] else 'https://i.ytimg.com/vi/' + (result['videoId'] or '') + '/mqdefault.jpg' }}';">
+            </div>
+            <div class="video-info">
+                <div class="video-details">
+                    <div class="video-title">{{ result['title'] }}</div>
+                    <div class="video-meta">
+                        {{ result["viewCountText"] or result["viewCount"] }}
+                    </div>
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+
+    {% elif type == 'channel' %}
+    <div class="yt-search-list" id="results-container">
+        {% for result in results %}
+        <a href="/channel/{{ result['authorId'] }}" class="yt-channel-card">
+            <div class="yt-channel-avatar-large">
+                <img src="{{ result['authorThumbnails'][-1]['url'] if result['authorThumbnails'] else '' }}" onerror="this.src='/proxy/thumb?v=default';" alt="icon">
+            </div>
+            <div class="yt-item-details">
+                <div class="yt-item-title" style="font-size: 20px; font-weight: 500;">{{ result['author'] }}</div>
+                <div class="yt-item-meta">
+                    {{ result['subCountText'] }} • {{ result['videoCount'] }} 本の動画
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+
+    {% elif type == 'playlist' %}
+    <div class="yt-search-list" id="results-container">
+        {% for result in results %}
+        <a href="/playlist?list={{ result['playlistId'] }}" class="yt-playlist-card">
+            <div class="yt-playlist-thumbnail-wrapper">
+                <img loading="lazy" src="{{ result['videoThumbnails'][0]['url'] if result['videoThumbnails'] else (('https://i.ytimg.com/vi/' + result['videos'][0]['videoId'] + '/hqdefault.jpg') if result['videos'] and result['videos'][0]['videoId'] else 'https://i.ytimg.com/vi/mqdefault.jpg') }}" onerror="this.src='https://i.ytimg.com/vi/mqdefault.jpg';" alt="playlist thumbnail">
+                <div class="playlist-overlay-badge">
+                    <span class="material-symbols-outlined">playlist_play</span>
+                    <span>{{ result['videoCount'] if result['videoCount'] else '再生リスト' }}</span>
+                </div>
+            </div>
+            <div class="yt-playlist-details">
+                <h3 class="yt-playlist-title">{{ result['title'] }}</h3>
+                <div class="yt-playlist-meta">
+                    {{ result['author'] }} • 再生リスト
+                </div>
+                <div class="yt-playlist-view-all">
+                    再生リスト全体を見る
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+
+    {% elif type == 'home' %}
+    <div class="video-grid" id="results-container">
+        {% for result in results %}
+        <a href="/watch?v={{ result['videoId'] }}" class="video-card">
+            <div class="video-thumbnail">
+                <img loading="lazy" src="/proxy/thumb?v={{ result['videoId'] }}" onerror="this.src='{{ result['videoThumbnails'][0]['url'] if result['videoThumbnails'] else 'https://i.ytimg.com/vi/' + (result['videoId'] or '') + '/mqdefault.jpg' }}';">
+                <span class="length-tag">
+                    {% if result["lengthSeconds"] %}
+                        {{ "%02d:%02d" | format(result["lengthSeconds"] // 60, result["lengthSeconds"] % 60) }}
+                    {% else %}
+                        LIVE
+                    {% endif %}
+                </span>
+            </div>
+            <div class="video-info">
+                <div class="video-details">
+                    <h3 class="video-title">{{ result['title'] }}</h3>
+                    <div class="video-author">
+                        {% if result['authorThumbnails'] %}
+                        <img class="author-icon" src="{{ result['authorThumbnails'][-1]['url'] }}" onerror="this.src='/proxy/thumb?v=default';" alt="author">
+                        {% endif %}
+                        <span>{{ result["author"] }}</span>
+                    </div>
+                    <div class="video-meta">
+                        {{ result["viewCountText"] or result["viewCount"] }} • {{ result["publishedText"] }}
+                    </div>
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+
+    {% else %}
+    <div class="video-grid" id="results-container">
+        {% for result in results %}
+        <a href="/watch?v={{ result['videoId'] }}" class="video-card">
+            <div class="video-thumbnail">
+                <img loading="lazy" src="/proxy/thumb?v={{ result['videoId'] }}" onerror="this.src='{{ result['videoThumbnails'][0]['url'] if result['videoThumbnails'] else 'https://i.ytimg.com/vi/' + (result['videoId'] or '') + '/mqdefault.jpg' }}';">
+                <span class="length-tag">
+                    {% if result["lengthSeconds"] %}
+                        {{ "%02d:%02d" | format(result["lengthSeconds"] // 60, result["lengthSeconds"] % 60) }}
+                    {% else %}
+                        LIVE
+                    {% endif %}
+                </span>
+            </div>
+            <div class="video-info">
+                <div class="video-details">
+                    <h3 class="video-title">{{ result['title'] }}</h3>
+                    <div class="video-author">
+                        {% if result['authorThumbnails'] %}
+                        <img class="author-icon" src="{{ result['authorThumbnails'][-1]['url'] }}" onerror="this.src='/proxy/thumb?v=default';" alt="author">
+                        {% endif %}
+                        <span>{{ result["author"] }}</span>
+                    </div>
+                    <div class="video-meta">
+                        {{ result["viewCountText"] or result["viewCount"] }} • {{ result["publishedText"] }}
+                    </div>
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if not results %}
+    <div style="text-align: center; margin-top: 80px; color: var(--yt-text-secondary);">
+        <span class="material-symbols-outlined" style="font-size: 48px; margin-bottom: 12px;">search_off</span>
+        <p style="font-size: 16px;">見つかりませんでした。</p>
+        <p style="font-size: 12px; opacity: 0.7;">(APIレスポンスが空、またはインスタンスエラーです)</p>
+    </div>
+    <script>
+        window.onload = function() {
+            showNotify("データの取得に失敗しました。インスタンスを切り替えるか、再試行してください。", true);
+        };
+    </script>
+    {% endif %}
+
+    <div id="infinite-loader">
+        <div class="yt-spinner"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let currentPage = {{ page if page else 1 }};
+    let isLoading = false;
+    let hasMore = true;
+    let isCseFetching = false;
+    let captchaTimer = null;
+    const seenVideoIds = new Set();
+    const currentSearchQuery = "{{ query|default('') }}";
+    const currentType = "{{ type }}";
+
+    // Google カスタム検索エンジンの初期化設定
+    window.__gcse = {
+        parsetags: 'explicit',
+        initializationCallback: function() {
+            google.search.cse.element.render({
+                div: "hidden-cse-container",
+                tag: 'searchresults-only',
+                gname: 'shortsCse'
+            });
+            // ページ読み込み後にホーム画面またはShorts検索時のデータ取得
+            if ($("#home-shorts-container").length > 0 && $("#home-shorts-container").find('.video-card.is-short').length === 0) {
+                triggerCseShortsSearch(currentSearchQuery ? currentSearchQuery : "人気 #shorts");
+            }
+        },
+        searchCallbacks: {
+            web: {
+                ready: function(name, q, promos, results) {
+                    // レスポンス受信時はタイマー解除およびCSEコンテナの非表示設定
+                    clearTimeout(captchaTimer);
+                    const cseContainer = document.getElementById('hidden-cse-container');
+                    if (cseContainer) {
+                        cseContainer.style.display = 'none';
+                    }
+
+                    isCseFetching = false;
+                    let videos = [];
+                    if (results && results.length > 0) {
+                        results.forEach(r => {
+                            const id = extractShortsId(r.unescapedUrl || r.url || "");
+                            if (id && !seenVideoIds.has(id)) {
+                                seenVideoIds.add(id);
+                                videos.push({ id: id, title: r.titleNoFormatting || r.title });
+                            }
+                        });
+                    }
+                    renderCseShortsResults(videos);
+                    return true;
+                }
+            }
+        }
+    };
+
+    // URLからショート動画の11桁IDのみを抽出するロジック
+    function extractShortsId(url) {
+        const match = url.match(/(?:shorts\/|v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+        return match ? match[1] : null;
+    }
+
+    // Shortsの検索実行ロジック (appendフラグで新規検索か追加検索かを判別)
+    function triggerCseShortsSearch(query, append = false) {
+        if (isCseFetching) return;
+        isCseFetching = true;
+
+        if (!append) {
+            seenVideoIds.clear();
+        } else {
+            // 追加読み込み時にスクロールエリアへスケルトンアニメーション（カード）を追加
+            const container = $('#home-shorts-container');
+            for(let i = 0; i < 3; i++) {
+                container.append('<div class="skeleton-card temp-skeleton"><div class="skeleton-thumb"></div><div class="skeleton-text"></div><div class="skeleton-text short"></div></div>');
+            }
+        }
+
+        // 既存のタイマーがあればクリア
+        clearTimeout(captchaTimer);
+
+        // 3秒経過してもレスポンスがなくisCseFetchingがtrueならCAPTCHA（ロボット確認）を表示
+        captchaTimer = setTimeout(() => {
+            if (isCseFetching) {
+                const cseContainer = document.getElementById('hidden-cse-container');
+                cseContainer.style.display = 'block';
+                cseContainer.style.position = 'fixed';
+                cseContainer.style.top = '100px';
+                cseContainer.style.left = '50%';
+                cseContainer.style.transform = 'translateX(-50%)';
+                cseContainer.style.zIndex = '10000';
+                alert("ロボット確認が必要です。画面に表示される指示に従ってください。完了すると自動で画面に戻ります。");
+            }
+        }, 3000);
+
+        const element = google.search.cse.element.getElement('shortsCse');
+
+        // 追加読み込み時はランダムな装飾キーワードを付けて検索リクエストを変化させる
+        const decor = append ? ["", " viral", " trend", " popular", " short", " new"][Math.floor(Math.random() * 6)] : "";
+
+        if (element) {
+            element.execute(query + decor + " site:youtube.com/shorts");
+        } else {
+            isCseFetching = false;
+            $('#home-shorts-container').find('.temp-skeleton').remove();
+        }
+    }
+
+    function renderCseShortsResults(videos) {
+        const container = $('#home-shorts-container');
+        
+        // 初回描写時および追加読み込み時のスケルトンカードを消去
+        container.find('.skeleton-card').remove();
+
+        videos.forEach(v => {
+            const html = `
+                <a href="/shorts/${v.id}" class="video-card is-short">
+                    <div class="thumbnail-box">
+                        <img class="thumbnail" loading="lazy" src="https://i.ytimg.com/vi/${v.id}/hqdefault.jpg" alt="${v.title}">
+                    </div>
+                    <div class="video-info">
+                        <div class="video-details">
+                            <div class="video-title">${v.title}</div>
+                        </div>
+                    </div>
+                </a>
+            `;
+            container.append(html);
+        });
+    }
+
+    $(document).ready(function () {
+        $("#filter-toggle-btn").click(function () {
+            $("#filter-panel").slideToggle(200);
+        });
+
+        // メインコンテンツの垂直無限スクロール（動画タイプのみ有効）
+        $(window).on('scroll', function () {
+            if (isLoading || !hasMore) return;
+
+            // 動画タイプの場合のみ無限スクロール有効
+            if (currentType && currentType !== 'video' && currentType !== '') return;
+
+            const scrollTop = $(window).scrollTop();
+            const windowHeight = $(window).height();
+            const documentHeight = $(document).height();
+
+            if (scrollTop + windowHeight >= documentHeight - 300) {
+                loadNextPage();
+            }
+        });
+
+        // 横スライドShortsセクションの水平無限スクロール
+        $('#home-shorts-container').on('scroll', function () {
+            const container = $(this);
+            const scrollLeft = container.scrollLeft();
+            const innerWidth = container.innerWidth();
+            const scrollWidth = container[0].scrollWidth;
+
+            // 右端の近く（残り200px以内）に達したら自動で追加読み込み実行
+            if (scrollLeft + innerWidth >= scrollWidth - 200) {
+                if (!isCseFetching) {
+                    triggerCseShortsSearch(currentSearchQuery ? currentSearchQuery : "人気 #shorts", true);
+                }
+            }
+        });
+    });
+
+    function applyFilter(filterType) {
+        document.getElementById('search-type').value = filterType;
+        document.getElementById('search-form').submit();
+    }
+
+    function loadNextPage() {
+        isLoading = true;
+        $("#infinite-loader").css("display", "flex");
+
+        // 追加読み込みアニメーション（スケルトンカードの生成）
+        const skeletonHtml = `
+            <div class="skeleton-card temp-main-skeleton">
+                <div class="skeleton-thumbnail"></div>
+                <div class="skeleton-info">
+                    <div class="skeleton-details">
+                        <div class="skeleton-line title-1"></div>
+                        <div class="skeleton-line title-2"></div>
+                        <div class="skeleton-line author"></div>
+                        <div class="skeleton-line meta"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+        for(let i = 0; i < 4; i++) {
+            $('#results-container').append(skeletonHtml);
+        }
+
+        const nextPage = currentPage + 1;
+        const query = encodeURIComponent("{{ query }}");
+        const type = "{{ type }}";
+
+        const url = `/search?q=${query}&type=${type}&page=${nextPage}`;
+
+        $.ajax({
+            url: url,
+            type: 'GET',
+            dataType: 'html',
+            success: function (response) {
+                $('#results-container').find('.temp-main-skeleton').remove();
+                const newItems = $(response).find('#results-container').html();
+                
+                if (newItems && $.trim(newItems).length > 0) {
+                    $('#results-container').append(newItems);
+                    currentPage = nextPage;
+                } else {
+                    hasMore = false;
+                }
+            },
+            error: function () {
+                $('#results-container').find('.temp-main-skeleton').remove();
+                hasMore = false;
+                showNotify("追加データの読み込みに失敗しました。", true);
+            },
+            complete: function () {
+                isLoading = false;
+                $("#infinite-loader").hide();
+            }
+        });
+    }
+
+    function showNotify(msg, isError = false) {
+        const alertBox = document.getElementById("custom-alert");
+        const alertIcon = document.getElementById("alert-icon");
+        const alertText = document.getElementById("alert-text");
+
+        alertText.innerText = msg;
+
+        if (isError) {
+            alertIcon.innerText = "warning";
+            alertIcon.style.color = "var(--yt-brand-red)";
+        } else {
+            alertIcon.innerText = "info";
+            alertIcon.style.color = "var(--yt-text-primary)";
+        }
+
+        $(alertBox).stop(true, true).fadeIn(300).delay(3000).fadeOut(500);
+    }
+</script>
+<script async src="https://cse.google.com/cse.js?cx=c04ec9d20c4264b0d"></script>
+{% endblock %}
