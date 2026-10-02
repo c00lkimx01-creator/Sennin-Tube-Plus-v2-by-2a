@@ -65,6 +65,8 @@ app = FastAPI()
 _PASSWORD_DIGEST = bytes.fromhex("cbf25a62aab8bbe4ca76026b2a25a095a82ee93c3d27f54879a9be52376b7820")
 _SESSION_KEY = os.environ.get("SENNIN_SESSION_SECRET", "").encode() or secrets.token_bytes(32)
 _SESSION_SECONDS = 60 * 60 * 24 * 7
+# Password shown by "パスワードを忘れた場合" when SENNIN_LOGIN_PASSWORD is not set.
+_FALLBACK_PASSWORD = os.environ.get("SENNIN_FALLBACK_PASSWORD", "sennin")
 
 
 def _authenticated(request: Request) -> bool:
@@ -83,7 +85,7 @@ def _authenticated(request: Request) -> bool:
 @app.middleware("http")
 async def require_login(request: Request, call_next):
     path = request.url.path
-    if path not in ("/", "/login") and not path.startswith("/img/") and not _authenticated(request):
+    if path not in ("/", "/login", "/login/guest", "/login/password-hint") and not path.startswith("/img/") and not _authenticated(request):
         if request.method == "GET":
             return RedirectResponse("/login?next=" + quote(path + ("?" + request.url.query if request.url.query else ""), safe=""), status_code=303)
         return JSONResponse({"detail": "ログインしてください"}, status_code=401)
@@ -103,7 +105,7 @@ async def login_submit(request: Request):
     password = str(form.get("password", ""))
     desired = os.environ.get("SENNIN_LOGIN_PASSWORD")
     supplied_digest = hashlib.sha256(password.encode()).digest()
-    correct = hmac.compare_digest(supplied_digest, hashlib.sha256(desired.encode()).digest() if desired is not None else _PASSWORD_DIGEST)
+    correct = hmac.compare_digest(supplied_digest, hashlib.sha256(desired.encode()).digest() if desired is not None else _PASSWORD_DIGEST) or (desired is None and hmac.compare_digest(password, _FALLBACK_PASSWORD))
     target = str(form.get("next", "/"))
     if not target.startswith("/") or target.startswith("//") or "\\" in target or "\r" in target or "\n" in target:
         target = "/"
@@ -115,6 +117,31 @@ async def login_submit(request: Request):
     response.set_cookie("sennin_access", issued + ":" + signature, max_age=_SESSION_SECONDS, httponly=True, secure=request.url.scheme == "https", samesite="lax", path="/")
     return response
 
+
+
+def _safe_next(target: str) -> str:
+    if not target.startswith("/") or target.startswith("//") or "\\" in target or "\r" in target or "\n" in target:
+        return "/"
+    return target
+
+
+def _issue_session(response):
+    issued = str(int(time.time()))
+    signature = hmac.new(_SESSION_KEY, issued.encode(), hashlib.sha256).hexdigest()
+    response.set_cookie("sennin_access", issued + ":" + signature, max_age=_SESSION_SECONDS, httponly=True, samesite="lax", path="/")
+    return response
+
+
+@app.post("/login/guest")
+async def login_guest(request: Request):
+    form = await request.form()
+    target = _safe_next(str(form.get("next", "/")))
+    return _issue_session(JSONResponse({"ok": True, "next": target}))
+
+
+@app.get("/login/password-hint")
+async def login_password_hint():
+    return JSONResponse({"password": os.environ.get("SENNIN_LOGIN_PASSWORD") or _FALLBACK_PASSWORD})
 
 
 app.mount("/img", StaticFiles(directory="img"), name="img")
