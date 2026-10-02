@@ -605,6 +605,9 @@ async def playlist(
             logger.error(f"Playlist request timeout for {list}")
             return templates.TemplateResponse("apitimeout.html", {"request": request})
 
+        if not isinstance(data, dict) or not isinstance(data.get("videos"), type([])):
+            raise ValueError("Playlist API returned no usable videos")
+
         return templates.TemplateResponse(
             "playlist.html",
             {
