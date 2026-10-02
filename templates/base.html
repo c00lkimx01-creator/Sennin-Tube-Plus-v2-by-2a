@@ -282,7 +282,14 @@
             object-position: left center;
             filter: var(--wordmark-filter, none);
         }
-        html.dark { --wordmark-filter: invert(1); }
+        /* The logo artwork is dark by default, so invert it in every dark-mode path. */
+        :root { --wordmark-filter: brightness(0) invert(1); }
+        @media (prefers-color-scheme: light) {
+            :root { --wordmark-filter: none; }
+        }
+        html.dark { --wordmark-filter: brightness(0) invert(1); }
+        html.light,
+        html.light-glass { --wordmark-filter: none; }
         @media (max-width: 520px) { .yt-logo-wordmark { display: none; } }
         .yt-logo-icon svg {
             height: 22px;

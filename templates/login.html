@@ -128,6 +128,12 @@
             box-shadow: 0 0 15px rgba(59, 130, 246, 0.2), inset 0 2px 4px rgba(0,0,0,0.3);
         }
 
+        .login-error {
+            margin: 0.65rem 0 0;
+            color: #fca5a5;
+            font-size: 0.85rem;
+        }
+
         /* ボタン共通：Liquid Glass & 粘性アニメーション */
         .btn {
             width: 100%;
@@ -287,10 +293,12 @@
         <div class="login-box">
             <h2>おかえりなさい</h2>
             
-            <form id="login-form">
+            <form id="login-form" action="/login" method="post">
+                <input type="hidden" name="next" value="{{ next }}">
                 <div class="form-group">
                     <label>パスワード</label>
-                    <input type="password" id="password" placeholder="パスワードを入力してください" required>
+                    <input type="password" id="password" name="password" placeholder="パスワードを入力してください" required autofocus autocomplete="current-password" aria-invalid="{{ 'true' if error else 'false' }}">
+                    {% if error %}<p class="login-error" role="alert">パスワードが違います</p>{% endif %}
                 </div>
                 
                 <button type="submit" class="btn btn-login">ログイン</button>
@@ -318,35 +326,14 @@
     const authStatusContainer = document.getElementById('auth-status-container');
     const statusText = document.getElementById('status-text');
 
-    // 認証シーケンス（4つのダミー項目）
-    async function startAuthSequence() {
+    // 認証はサーバー側で行い、元の見た目とボタン演出だけを維持します。
+    loginForm.addEventListener('submit', () => {
         authStatusContainer.style.display = 'block';
-        const steps = [
-            "認証情報を確認中...",
-            "クッキーをチェック中...",
-            "セキュリティトークンを検証中...",
-            "学習環境を準備中..."
-        ];
-
-        for (let step of steps) {
-            statusText.innerText = step;
-            await new Promise(resolve => setTimeout(resolve, 800));
-        }
-        
-        window.location.href = 'home.html';
-    }
-
-    loginForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        if (passwordInput.value === 'sennin') {
-            startAuthSequence();
-        } else {
-            alert('パスワードが違います');
-        }
+        statusText.innerText = '認証情報を確認中...';
     });
 
     guestBtn.addEventListener('click', () => {
-        startAuthSequence();
+        passwordInput.focus();
     });
 
     // ストレッチの挙動：横のみに伸びるよう修正
