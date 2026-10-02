@@ -9,6 +9,12 @@ import json
 from datetime import datetime
 import random
 import html
+import os
+import hmac
+import hashlib
+import secrets
+import time
+from urllib.parse import quote
 
 from app.search import router as search_router
 from app.video import router as video_router
@@ -54,6 +60,61 @@ def get_education_embed_url(video_id: str, source_name: str) -> str:
     return embed_url
 
 app = FastAPI()
+
+# One shared access code, checked only on the server. Override with SENNIN_LOGIN_PASSWORD.
+_PASSWORD_DIGEST = bytes.fromhex("cbf25a62aab8bbe4ca76026b2a25a095a82ee93c3d27f54879a9be52376b7820")
+_SESSION_KEY = os.environ.get("SENNIN_SESSION_SECRET", "").encode() or secrets.token_bytes(32)
+_SESSION_SECONDS = 60 * 60 * 24 * 7
+
+
+def _authenticated(request: Request) -> bool:
+    cookie = request.cookies.get("sennin_access", "")
+    try:
+        timestamp, signature = cookie.split(":", 1)
+        issued = int(timestamp)
+        if issued > time.time() or time.time() - issued > _SESSION_SECONDS:
+            return False
+        expected = hmac.new(_SESSION_KEY, timestamp.encode(), hashlib.sha256).hexdigest()
+        return hmac.compare_digest(signature, expected)
+    except (ValueError, TypeError):
+        return False
+
+
+@app.middleware("http")
+async def require_login(request: Request, call_next):
+    path = request.url.path
+    if path not in ("/", "/login") and not path.startswith("/img/") and not _authenticated(request):
+        if request.method == "GET":
+            return RedirectResponse("/login?next=" + quote(path + ("?" + request.url.query if request.url.query else ""), safe=""), status_code=303)
+        return JSONResponse({"detail": "ログインしてください"}, status_code=401)
+    return await call_next(request)
+
+
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request):
+    if _authenticated(request):
+        return RedirectResponse("/", status_code=303)
+    return templates.TemplateResponse("access-login.html", {"request": request, "error": False, "next": request.query_params.get("next", "/")})
+
+
+@app.post("/login", response_class=HTMLResponse)
+async def login_submit(request: Request):
+    form = await request.form()
+    password = str(form.get("password", ""))
+    desired = os.environ.get("SENNIN_LOGIN_PASSWORD")
+    supplied_digest = hashlib.sha256(password.encode()).digest()
+    correct = hmac.compare_digest(supplied_digest, hashlib.sha256(desired.encode()).digest() if desired is not None else _PASSWORD_DIGEST)
+    target = str(form.get("next", "/"))
+    if not target.startswith("/") or target.startswith("//") or "\\" in target or "\r" in target or "\n" in target:
+        target = "/"
+    if not correct:
+        return templates.TemplateResponse("access-login.html", {"request": request, "error": True, "next": target}, status_code=401)
+    issued = str(int(time.time()))
+    signature = hmac.new(_SESSION_KEY, issued.encode(), hashlib.sha256).hexdigest()
+    response = RedirectResponse(target, status_code=303)
+    response.set_cookie("sennin_access", issued + ":" + signature, max_age=_SESSION_SECONDS, httponly=True, secure=request.url.scheme == "https", samesite="lax", path="/")
+    return response
+
 
 
 app.mount("/img", StaticFiles(directory="img"), name="img")
@@ -160,11 +221,13 @@ def get_education_url_api(video_id: str, source: str):
 async def index(request: Request):
     # 初回アクセス判定用フラグをCookieから読み込み
     has_visited = request.cookies.get("welcome_seen", "false") == "true"
-    if not has_visited:
+    if not has_visited and not _authenticated(request):
         return templates.TemplateResponse(
             "welcome.html",
             {"request": request},
         )
+    if not _authenticated(request):
+        return RedirectResponse("/login", status_code=303)
     return templates.TemplateResponse(
         "home.html",
         {"request": request},
