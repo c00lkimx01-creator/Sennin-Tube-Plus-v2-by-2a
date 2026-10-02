@@ -1396,8 +1396,11 @@
             'sennin': { name: 'Sennin', timeout: '3.5s' }
         };
 
-        const infoApi = infoApiUsed || 'invidious';
-        const streamApi = streamApiUsed || 'sia';
+        const normApi = (v) => (!v || v.toLowerCase() === 'unknown' || v === 'None') ? 'nocookie' : v.toLowerCase();
+        const infoApi = normApi(infoApiUsed);
+        const streamApi = normApi(streamApiUsed);
+        infoApiMap['nocookie'] = infoApiMap['nocookie'] || { name: 'YouTube埋め込み (nocookie)', timeout: '-' };
+        streamApiMap['nocookie'] = streamApiMap['nocookie'] || { name: 'YouTube埋め込み (nocookie)', timeout: '-' };
 
         const infoData = infoApiMap[infoApi] || { name: infoApi.toUpperCase(), timeout: '?' };
         const streamData = streamApiMap[streamApi] || { name: streamApi.toUpperCase(), timeout: '?' };
