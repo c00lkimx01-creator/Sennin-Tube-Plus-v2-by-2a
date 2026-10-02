@@ -1279,7 +1279,7 @@
     video.addEventListener('seeking', () => { if (audio.src) audio.currentTime = video.currentTime; });
     video.addEventListener('ratechange', () => { if (audio.src) audio.playbackRate = video.playbackRate; });
 
-    function openModal() { document.getElementById('dl-modal').style.display = 'flex'; }
+    function openModal() { const m = document.getElementById('dl-modal'); if (m.parentElement !== document.body) document.body.appendChild(m); m.style.display = 'flex'; }
     function closeModal() { document.getElementById('dl-modal').style.display = 'none'; }
 
     let alertTimeout = null;
@@ -1703,6 +1703,8 @@
             const sp = document.createElement('span'); sp.textContent = `${n} (${d[n].length})`;
             row.append(cb, sp); list.appendChild(row);
         });
+        if (m.parentElement !== document.body) document.body.appendChild(m);
+        m.style.position = 'fixed'; m.style.inset = '0'; m.style.width = '100vw'; m.style.height = '100vh';
         m.style.display = 'flex';
     }
     function closePlaylistModal() { document.getElementById('mpl-modal').style.display = 'none'; }

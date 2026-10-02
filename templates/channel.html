@@ -493,7 +493,7 @@
             <div class="card-thumbnail-wrapper">
                 <img class="card-thumbnail" src="/proxy/thumb?v={{ video.videoId }}" loading="lazy" alt="{{ video.title }}">
                 {% if video.lengthSeconds %}
-                <span class="card-duration">{{ video.lengthText if video.lengthText else video.lengthSeconds }}</span>
+                <span class="card-duration">{{ video.lengthSeconds|duration }}</span>
                 {% endif %}
             </div>
             <div class="card-details">

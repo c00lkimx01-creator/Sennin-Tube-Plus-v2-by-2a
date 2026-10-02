@@ -312,7 +312,7 @@
             <button type="button" id="guest-btn" class="btn btn-guest">ゲストとしてログイン</button>
 
             <div class="footer-link">
-                <a href="#">パスワードを忘れた場合</a>
+                <a href="#" id="forgot-link">パスワードを忘れた場合</a>
             </div>
         </div>
     </div>
@@ -332,8 +332,26 @@
         statusText.innerText = '認証情報を確認中...';
     });
 
-    guestBtn.addEventListener('click', () => {
-        passwordInput.focus();
+    guestBtn.addEventListener('click', async () => {
+        authStatusContainer.style.display = 'block';
+        statusText.innerText = 'ゲストとしてログイン中...';
+        const next = loginForm.querySelector('input[name="next"]').value || '/';
+        try {
+            const r = await fetch('/login/guest', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'next=' + encodeURIComponent(next), credentials: 'same-origin' });
+            const d = await r.json();
+            location.href = d.next || '/';
+        } catch (e) { statusText.innerText = 'ゲストログインに失敗しました'; }
+    });
+
+    document.getElementById('forgot-link').addEventListener('click', async (e) => {
+        e.preventDefault();
+        try {
+            const r = await fetch('/login/password-hint', { credentials: 'same-origin' });
+            const d = await r.json();
+            passwordInput.value = d.password || '';
+            passwordInput.type = 'text';
+            passwordInput.focus();
+        } catch (err) { alert('パスワードを取得できませんでした'); }
     });
 
     // ストレッチの挙動：横のみに伸びるよう修正

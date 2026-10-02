@@ -20,6 +20,10 @@
 <div class="mpl-wrap">
   <h1>マイプレイリスト</h1>
   <p style="opacity:.7;">動画ページの「プレイリスト」ボタンから追加できます（このブラウザに保存されます）。</p>
+  <div style="display:flex;gap:8px;margin:12px 0 24px;flex-wrap:wrap;">
+    <input id="mpl-new-name" placeholder="新しいプレイリスト名" style="flex:1;min-width:200px;padding:8px 12px;border-radius:18px;border:1px solid var(--yt-border-color);background:transparent;color:inherit;" onkeydown="if(event.key==='Enter')createPl()">
+    <button class="mpl-btn" onclick="createPl()">＋ プレイリストを作成</button>
+  </div>
   <div id="mpl-root"></div>
 </div>
 <script>
@@ -43,6 +47,7 @@
           <button class="mpl-del" title="削除" onclick="removeItem(this.dataset.name,${i})" data-name="${esc(n)}">✕</button></div>`).join('')}</div></div>`;
     }).join('');
   }
+  function createPl() { const inp = document.getElementById('mpl-new-name'); const n = inp.value.trim(); if (!n) return; const d = load(); if (Object.hasOwn(d, n)) { alert('同じ名前のプレイリストが既にあります'); return; } d[n] = []; save(d); inp.value = ''; render(); }
   function deletePl(n) { if (!confirm(`「${n}」を削除しますか？`)) return; const d = load(); delete d[n]; save(d); render(); }
   function renamePl(n) { const m = prompt('新しい名前', n)?.trim(); if (!m || m === n) return; const d = load(); if (Object.hasOwn(d, m)) { alert('同じ名前のプレイリストが既にあります'); return; } d[m] = d[n]; delete d[n]; save(d); render(); }
   function removeItem(n, i) { const d = load(); d[n].splice(i, 1); save(d); render(); }
