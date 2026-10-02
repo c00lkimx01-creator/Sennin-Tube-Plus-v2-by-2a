@@ -94,7 +94,7 @@ async def require_login(request: Request, call_next):
 async def login_page(request: Request):
     if _authenticated(request):
         return RedirectResponse("/", status_code=303)
-    return templates.TemplateResponse("access-login.html", {"request": request, "error": False, "next": request.query_params.get("next", "/")})
+    return templates.TemplateResponse("login.html", {"request": request, "error": False, "next": request.query_params.get("next", "/")})
 
 
 @app.post("/login", response_class=HTMLResponse)
@@ -108,7 +108,7 @@ async def login_submit(request: Request):
     if not target.startswith("/") or target.startswith("//") or "\\" in target or "\r" in target or "\n" in target:
         target = "/"
     if not correct:
-        return templates.TemplateResponse("access-login.html", {"request": request, "error": True, "next": target}, status_code=401)
+        return templates.TemplateResponse("login.html", {"request": request, "error": True, "next": target}, status_code=401)
     issued = str(int(time.time()))
     signature = hmac.new(_SESSION_KEY, issued.encode(), hashlib.sha256).hexdigest()
     response = RedirectResponse(target, status_code=303)
