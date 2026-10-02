@@ -313,7 +313,7 @@
     <!-- 動画一覧リスト -->
     <section class="playlist-items-section">
         {% for video in videos %}
-        <a href="/watch?v={{ video.videoId }}&list={{ playlistId }}" class="playlist-item-card">
+        {% if video.videoId %}<a href="/watch?v={{ video.videoId }}&list={{ playlistId }}" class="playlist-item-card">
             <div class="item-index-num">{{ loop.index }}</div>
             
             <div class="item-thumb-container">
@@ -324,7 +324,7 @@
                 <h3 class="item-title">{{ video.title }}</h3>
                 <p class="item-channel-name">{{ video.author }}</p>
             </div>
-        </a>
+        </a>{% endif %}
         {% endfor %}
     </section>
 </div>

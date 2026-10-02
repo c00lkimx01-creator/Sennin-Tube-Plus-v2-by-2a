@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ログイン | 仙人tube plus</title>
+  <style>
+    :root { color-scheme: light dark; --bg:#f0f4f9; --text:#111827; --sub:#374151; --glass:rgba(255,255,255,.85); --line:rgba(255,255,255,.95); --blue:#1a73e8; --blue-text:#fff; --field:rgba(255,255,255,.65); --error:#b42318; }
+    @media (prefers-color-scheme: dark) { :root { --bg:#0a0e17; --text:#f3f4f6; --sub:#d1d5db; --glass:rgba(18,24,38,.85); --line:rgba(255,255,255,.18); --blue:#8ab4f8; --blue-text:#061121; --field:rgba(255,255,255,.08); --error:#ff9d92; } }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100dvh; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; background:var(--bg); color:var(--text); overflow-x:hidden; }
+    .glow { position:fixed; width:min(70vw,700px); aspect-ratio:1; border-radius:50%; filter:blur(130px); opacity:.2; pointer-events:none; }
+    .one { top:-30%; left:-20%; background:#4285f4; } .two { bottom:-35%; right:-20%; background:#ea4335; }
+    .shell { position:relative; min-height:100dvh; display:flex; flex-direction:column; padding:clamp(20px,4vh,40px) clamp(20px,5vw,60px); }
+    .brand { display:flex; align-items:center; gap:12px; font-size:1.1rem; font-weight:700; text-decoration:none; color:inherit; width:max-content; }
+    .brand img { width:27px; height:27px; object-fit:contain; }
+    main { flex:1; display:grid; place-items:center; padding:30px 0; }
+    .panel { width:min(100%,440px); padding:clamp(26px,5vw,42px); border-radius:24px; background:var(--glass); border:1px solid var(--line); box-shadow:0 20px 50px rgba(0,0,0,.12); backdrop-filter:blur(30px); }
+    .mark { display:grid; place-items:center; width:50px; height:50px; border-radius:15px; background:var(--blue); color:var(--blue-text); font-size:25px; margin-bottom:24px; }
+    h1 { font-size:clamp(1.8rem,5vw,2.25rem); line-height:1.25; margin:0 0 8px; }
+    .subtitle { color:var(--sub); line-height:1.6; margin:0 0 32px; }
+    label { display:block; font-weight:650; margin-bottom:10px; }
+    input { width:100%; height:52px; padding:0 15px; border:1px solid var(--line); border-radius:10px; background:var(--field); color:var(--text); font:inherit; outline:none; }
+    input:focus { border-color:var(--blue); box-shadow:0 0 0 3px color-mix(in srgb,var(--blue) 20%,transparent); }
+    button { width:100%; min-height:50px; margin-top:22px; border:0; border-radius:100px; background:var(--blue); color:var(--blue-text); font:inherit; font-weight:700; cursor:pointer; }
+    button:hover { filter:brightness(1.08); }
+    .error { color:var(--error); margin:12px 0 0; font-size:.9rem; }
+    footer { font-size:.83rem; color:var(--sub); }
+  </style>
+</head>
+<body>
+  <div class="glow one"></div><div class="glow two"></div>
+  <div class="shell">
+    <a class="brand" href="/"><img src="/img/logo/sennin-icon.png" alt="">仙人tube plus</a>
+    <main><form class="panel" action="/login" method="post">
+      <div class="mark" aria-hidden="true">▶</div>
+      <h1>おかえりなさい</h1>
+      <p class="subtitle">仙人tube plus にログイン</p>
+      <input type="hidden" name="next" value="{{ next }}">
+      <label for="password">パスワード</label>
+      <input id="password" name="password" type="password" required autofocus autocomplete="current-password" aria-invalid="{{ 'true' if error else 'false' }}">
+      {% if error %}<p class="error" role="alert">パスワードが違います。もう一度お試しください。</p>{% endif %}
+      <button type="submit">ログイン</button>
+    </form></main>
+    <footer>仙人tube plus</footer>
+  </div>
+</body>
+</html>

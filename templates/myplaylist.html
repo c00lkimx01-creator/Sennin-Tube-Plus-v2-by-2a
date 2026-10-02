@@ -29,22 +29,22 @@
   const esc = s => String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   function render() {
     const d = load(), root = document.getElementById('mpl-root');
-    const names = Object.keys(d);
+    const names = Object.keys(d).filter(n => Array.isArray(d[n]));
     if (!names.length) { root.innerHTML = '<div class="mpl-empty">プレイリストはまだありません</div>'; return; }
     root.innerHTML = names.map(n => {
       const items = d[n];
-      const play = items.length ? `<a class="mpl-btn" href="/watch?v=${items[0].id}&mpl=${encodeURIComponent(n)}&idx=0">▶ すべて再生</a>` : '';
+      const play = items.length ? `<a class="mpl-btn" href="/watch?v=${encodeURIComponent(items[0].id)}&mpl=${encodeURIComponent(n)}&idx=0">▶ すべて再生</a>` : '';
       return `<div class="mpl-section"><div class="mpl-head"><h2>${esc(n)}</h2><span style="opacity:.7">${items.length} 本</span>${play}
-        <button class="mpl-btn" onclick="renamePl(${esc(JSON.stringify(n))})">名前変更</button>
-        <button class="mpl-btn" onclick="deletePl(${esc(JSON.stringify(n))})">削除</button></div>
+        <button class="mpl-btn" onclick="renamePl(this.dataset.name)" data-name="${esc(n)}">名前変更</button>
+        <button class="mpl-btn" onclick="deletePl(this.dataset.name)" data-name="${esc(n)}">削除</button></div>
         <div class="mpl-grid">${items.map((v, i) => `<div class="mpl-card">
-          <a href="/watch?v=${v.id}&mpl=${encodeURIComponent(n)}&idx=${i}" style="color:inherit;text-decoration:none;">
+          <a href="/watch?v=${encodeURIComponent(v.id)}&mpl=${encodeURIComponent(n)}&idx=${i}" style="color:inherit;text-decoration:none;">
           <img src="/thumbnail?v=${v.id}" loading="lazy" alt=""><div class="t">${esc(v.title || v.id)}</div><div class="a">${esc(v.author)}</div></a>
-          <button class="mpl-del" title="削除" onclick="removeItem(${esc(JSON.stringify(n))},${i})">✕</button></div>`).join('')}</div></div>`;
+          <button class="mpl-del" title="削除" onclick="removeItem(this.dataset.name,${i})" data-name="${esc(n)}">✕</button></div>`).join('')}</div></div>`;
     }).join('');
   }
   function deletePl(n) { if (!confirm(`「${n}」を削除しますか？`)) return; const d = load(); delete d[n]; save(d); render(); }
-  function renamePl(n) { const m = prompt('新しい名前', n); if (!m || m === n) return; const d = load(); d[m] = d[n]; delete d[n]; save(d); render(); }
+  function renamePl(n) { const m = prompt('新しい名前', n)?.trim(); if (!m || m === n) return; const d = load(); if (Object.hasOwn(d, m)) { alert('同じ名前のプレイリストが既にあります'); return; } d[m] = d[n]; delete d[n]; save(d); render(); }
   function removeItem(n, i) { const d = load(); d[n].splice(i, 1); save(d); render(); }
   render();
 </script>

@@ -1681,7 +1681,7 @@
     function mplSave(d) { localStorage.setItem(MPL_KEY, JSON.stringify(d)); }
     function openPlaylistModal() {
         const d = mplLoad();
-        const names = Object.keys(d);
+        const names = Object.keys(d).filter(n => Array.isArray(d[n]));
         const m = document.getElementById('mpl-modal');
         const list = document.getElementById('mpl-list');
         list.innerHTML = names.length ? '' : '<div style="opacity:.7;padding:8px 0;">プレイリストがありません</div>';
@@ -1692,9 +1692,10 @@
             const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = has;
             cb.onchange = () => {
                 const dd = mplLoad();
+                if (!Array.isArray(dd[n])) dd[n] = [];
                 if (cb.checked) { if (!dd[n].some(v => v.id === videoId)) dd[n].push({ id: videoId, title: document.getElementById('video-title').innerText.trim(), author: {{ (author or '')|tojson }} }); }
                 else dd[n] = dd[n].filter(v => v.id !== videoId);
-                mplSave(dd); showAlert(cb.checked ? `「${n}」に追加しました` : `「${n}」から削除しました`, 1200);
+                mplSave(dd); sp.textContent = `${n} (${dd[n].length})`; showAlert(cb.checked ? `「${n}」に追加しました` : `「${n}」から削除しました`, 1200);
             };
             const sp = document.createElement('span'); sp.textContent = `${n} (${d[n].length})`;
             row.append(cb, sp); list.appendChild(row);
@@ -1705,16 +1706,28 @@
     function mplCreate() {
         const inp = document.getElementById('mpl-new');
         const n = inp.value.trim(); if (!n) return;
-        const d = mplLoad(); if (!d[n]) d[n] = [];
+        const d = mplLoad(); if (!Array.isArray(d[n])) d[n] = [];
         if (!d[n].some(v => v.id === videoId)) d[n].push({ id: videoId, title: document.getElementById('video-title').innerText.trim(), author: {{ (author or '')|tojson }} });
         mplSave(d); inp.value = ''; openPlaylistModal();
     }
+    {% if playlist_videos and playlist_id %}
+    (function () {
+        const items = {{ playlist_videos|tojson }};
+        const current = items.findIndex(item => item.videoId === videoId);
+        if (current < 0) return;
+        video.addEventListener('ended', () => {
+            const next = items[current + 1];
+            if (next && next.videoId) location.href = `/watch?v=${encodeURIComponent(next.videoId)}&list=${encodeURIComponent({{ playlist_id|tojson }})}`;
+        });
+    })();
+    {% endif %}
     // 連続再生: ?mpl=名前&idx=n
     (function () {
         const q = new URLSearchParams(location.search);
         const name = q.get('mpl'); if (name === null) return;
         const idx = parseInt(q.get('idx') || '0', 10);
         const items = mplLoad()[name] || [];
+        if (!Array.isArray(items)) return;
         const v = document.getElementById('video-player');
         if (v) v.addEventListener('ended', () => {
             const next = items[idx + 1];

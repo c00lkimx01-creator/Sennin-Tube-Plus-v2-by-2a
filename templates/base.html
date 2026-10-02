@@ -276,12 +276,13 @@
         .yt-logo-icon { gap: 6px; }
         .yt-logo-img { height: 30px; width: 30px; object-fit: contain; }
         .yt-logo-wordmark {
-            font-size: 20px;
-            font-weight: 700;
-            letter-spacing: -0.5px;
-            color: var(--yt-text-primary, #0f0f0f);
-            line-height: 1;
+            width: 105px;
+            height: 27px;
+            object-fit: contain;
+            object-position: left center;
+            filter: var(--wordmark-filter, none);
         }
+        html.dark { --wordmark-filter: invert(1); }
         @media (max-width: 520px) { .yt-logo-wordmark { display: none; } }
         .yt-logo-icon svg {
             height: 22px;
@@ -591,7 +592,7 @@
             </button>
             <a href="/" class="yt-logo-icon" title="ホーム">
                 <img src="/img/logo/sennin-icon.png" alt="Sennin" class="yt-logo-img">
-                <span class="yt-logo-wordmark">youtube</span>
+                <img src="/img/logo/sennin-tube.svg" alt="仙人Tube" class="yt-logo-wordmark">
             </a>
         </div>
 

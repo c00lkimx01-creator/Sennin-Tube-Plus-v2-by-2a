@@ -261,7 +261,10 @@
       transform: scale(0.92) translateY(10px);
       transition: opacity 0.7s ease, transform 0.7s ease;
       pointer-events: none;
+      overflow-x: hidden;
       overflow-y: auto;
+      min-height: 0;
+      overscroll-behavior: contain;
       
       scrollbar-width: thin;
       scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
@@ -288,6 +291,11 @@
       background: var(--scrollbar-thumb-hover);
       border: 1.5px solid transparent;
       background-clip: content-box;
+    }
+
+    .slide:last-child {
+      justify-content: flex-start;
+      align-items: center;
     }
 
     .slide.active {
@@ -370,8 +378,8 @@
       flex-direction: column;
       gap: 20px;
       text-align: left;
-      margin: auto 0;
-      padding: 10px 0;
+      margin: 0;
+      padding: 10px 0 24px;
     }
 
     .credit-card {
@@ -888,13 +896,13 @@
   <!-- 3. 確認モーダルUI -->
   <div class="modal-backdrop" id="confirmModal">
     <div class="glass-modal">
-      <h3 class="modal-title">アプリを開始しますか？</h3>
+      <h3 class="modal-title">アプリを起動しますか？</h3>
       <p class="modal-desc">
-        仙人tube plus のメイン画面へ移動します。
+        ログイン画面へ進みます。
       </p>
       <div class="modal-actions">
         <button class="btn btn-secondary" id="modalCancelBtn">キャンセル</button>
-        <button class="btn btn-primary" id="modalOkBtn">スタート</button>
+        <button class="btn btn-primary" id="modalOkBtn">アプリを起動</button>
       </div>
     </div>
   </div>
@@ -957,15 +965,8 @@
       setTimeout(() => {
         const elapsedTime = Date.now() - startTime;
         
-        // Bot判定
-        const isBot = navigator.webdriver || elapsedTime < 1000;
-
-        if (isBot) {
-          window.location.href = "https://www.google.com";
-        } else {
-          bootOverlay.classList.add('hidden');
-          mainWrapper.classList.add('show');
-        }
+        bootOverlay.classList.add('hidden');
+        mainWrapper.classList.add('show');
       }, 2500);
     });
 
@@ -992,7 +993,8 @@
       });
 
       prevBtn.style.display = index === 0 ? 'none' : 'inline-flex';
-      nextBtn.innerText = index === slides.length - 1 ? 'スタート' : '次へ';
+      nextBtn.innerText = index === slides.length - 1 ? '次へ' : '次へ';
+      slides[index].scrollTop = 0;
     }
 
     nextBtn.addEventListener('click', () => {
@@ -1048,7 +1050,7 @@
       confirmModal.style.opacity = '0';
       
       setTimeout(() => {
-        window.location.href = '/';
+        window.location.href = '/login';
       }, 600);
     });
   </script>
