@@ -2200,6 +2200,17 @@ async def api_piped_stream(
     )
 
 
+def _resolve_api_labels(v_data, s_data, video_urls):
+    """表示用のAPI名を決める。取得が間に合わなかった場合も "unknown" にしない。"""
+    info = v_data.get("api_used") or v_data.get("_source") or ""
+    stream = s_data.get("stream_api_used") or ""
+    if stream == "unknown":
+        stream = ""
+    if not stream and video_urls and info:
+        stream = info  # 動画情報から取り出したストリームを使用
+    return (info or "nocookie", stream or "nocookie")
+
+
 def _nocookie_url(video_id: str) -> str:
     return NOCOOKIE_EMBED_BASE + quote(video_id, safe="")
 
@@ -2269,8 +2280,7 @@ async def shorts_player(
 
         comments = process_comments(comment_data)
 
-        info_api_used = v_data.get("api_used") or v_data.get("_source") or "unknown"
-        stream_api_used = s_data.get("stream_api_used") or "unknown"
+        info_api_used, stream_api_used = _resolve_api_labels(v_data, s_data, video_urls)
 
         return templates.TemplateResponse(
             "short.html",
@@ -2400,8 +2410,7 @@ async def watch(
 
         formatted_comments = process_comments(comment_data)
 
-        info_api_used = v_data.get("api_used") or v_data.get("_source") or "unknown"
-        stream_api_used = s_data.get("stream_api_used") or "unknown"
+        info_api_used, stream_api_used = _resolve_api_labels(v_data, s_data, video_urls)
 
         return templates.TemplateResponse(
             "watch.html",
