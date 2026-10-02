@@ -26,6 +26,21 @@ templates = Jinja2Templates(directory="templates")
 templates.env.add_extension("jinja2.ext.do")
 
 
+def _fmt_duration(val):
+    try:
+        sec = int(val)
+    except (TypeError, ValueError):
+        return val or ""
+    if sec <= 0:
+        return ""
+    h, rem = divmod(sec, 3600)
+    m, s = divmod(rem, 60)
+    return f"{h}:{m:02d}:{s:02d}" if h else f"{m}:{s:02d}"
+
+
+templates.env.filters["duration"] = _fmt_duration
+
+
 @dataclass
 class CacheEntry:
     value: Any
@@ -314,7 +329,7 @@ async def channel(
         cached = _cache.get(cache_key)
         if cached:
             logger.info(f"Full cache hit: {ucid}")
-            return templates.TemplateResponse("channel.html", cached)
+            return templates.TemplateResponse("channel.html", {**cached, "request": request})
         
         fetched_res = {}
         sia_data = None
@@ -384,7 +399,7 @@ async def channel(
             "tab": tab,
         }
         
-        _cache.set(cache_key, context, ttl_seconds=300)
+        _cache.set(cache_key, {k: v for k, v in context.items() if k != "request"}, ttl_seconds=300)
         
         import random
         if random.random() < 0.01:
